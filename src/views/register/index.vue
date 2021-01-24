@@ -4,21 +4,55 @@
       <div class="login-head">
         <div class="logo"></div>
       </div>
-      <div class="login-title"><h2>Login</h2></div>
+      <div class="login-title"><h2>Reset password</h2></div>
       <el-form
         class="login-form"
         ref="login-form"
         :model="user"
         :rules="formRules"
+        label-position="left"
+        label-width="90px"
       >
-        <el-form-item prop="email">
+        <el-form-item label="Email" prop="email">
           <el-input v-model="user.email" placeholder="Email"></el-input>
         </el-form-item>
-        <el-form-item prop="password">
+        <el-form-item label="Code" prop="code">
+          <el-input
+            v-model="user.code"
+            placeholder="Code"
+            class="code"
+          ></el-input>
+          <el-tooltip
+            class="item"
+            effect="dark"
+            content="The code will be sent to email above by clicking get code button."
+            placement="top-start"
+          >
+            <i class="el-icon-question"></i>
+          </el-tooltip>
+          <el-button
+            type="primary"
+            :disabled="isDisabled"
+            aria-autocomplete="false"
+            class="codebutton"
+          >
+            Get Code
+          </el-button>
+        </el-form-item>
+        <el-form-item label="Password" prop="password">
           <el-input
             type="password"
             v-model="user.password"
             placeholder="Password"
+            auto-complete="false"
+          ></el-input>
+        </el-form-item>
+        <el-form-item label="Password" prop="cpassword">
+          <el-input
+            type="password"
+            v-model="user.cpassword"
+            placeholder="Confrim Password"
+            auto-complete="false"
           ></el-input>
         </el-form-item>
         <el-form-item prop="agree">
@@ -32,13 +66,12 @@
             :loading="loginLoading"
             type="primary"
             @click="onLogin"
-            >Login</el-button
+            >Register Now</el-button
           >
         </el-form-item>
         <el-form-item>
-          <div><a class="login-title" href="#/resetpassword">Forgot Password</a></div>
           <div>
-            <a class="login-title" href="#/register"> Register</a>
+            <a class="login-title" href="#/login"> Aready had account, Login?</a>
           </div>
         </el-form-item>
       </el-form>
@@ -56,15 +89,24 @@ export default {
   props: {},
   data () {
     const validatePassword = (rule, value, callback) => {
-      if (value.length < 8 || value.length > 32) {
-        callback(new Error('The password is not in correct format'))
+      if (value.length < 8) {
+        callback(new Error('Passwor should be at least 8 characters'))
+      } else if (value.length > 32) {
+        callback(new Error('Passwor should be less than 32 characters'))
+      } else {
+        callback()
+      }
+    }
+    const validatecPassword = (rule, value, callback) => {
+      if (value !== this.user.password) {
+        callback(new Error('Two passwords are not same'))
       } else {
         callback()
       }
     }
     const validateEmail = (rule, value, callback) => {
       if (!validEmail(value) || value.length > 128) {
-        callback(new Error('The password is not in correct format'))
+        callback(new Error('Email is not in correct format'))
       } else {
         callback()
       }
@@ -73,14 +115,16 @@ export default {
       user: {
         email: '',
         password: '',
-        agree: false
+        cpassword: '',
+        agree: false,
+        code: ''
       },
       loginLoading: false,
       formRules: {
-        email: [{ required: true, trigger: 'blur', validator: validateEmail }],
-        password: [
-          { required: true, trigger: 'blur', validator: validatePassword }
-        ],
+        email: [{ trigger: 'blur', validator: validateEmail }],
+        password: [{ trigger: 'blur', validator: validatePassword }],
+        cpassword: [{ trigger: 'blur', validator: validatecPassword }],
+        code: [{ min: 6, max: 6, message: 'The code shoul be a 6 digits number', trigger: 'blur' }],
         agree: [
           {
             validator: (rule, value, callback) => {
@@ -108,28 +152,45 @@ export default {
         if (!valid) {
           return
         }
+
+        // 验证通过，请求登录
         this.login()
       })
     },
 
     login () {
+      // 开启登陆中 loading...
       this.loginLoading = true
+
+      // 对于代码中的请求操作
+      // 1、接口请求可能需要重用
+      // 2、实际工作中，接口非常容易变动，改起来麻烦
+      // 我们建议的做法是把所有的请求都封装成函数然后统一的组织到模块中进行管理
+      // 这样做的好处就是：管理维护更方便，也好重用
       login(this.user)
         .then(res => {
+          // console.log(res)
+
+          // 登录成功
           this.$message({
             message: 'Login Success',
             type: 'success'
           })
-          this.loginLoading = false
+
+          // 关闭 loading
+          this.loginLoading = true
 
           this.$router.push({
             name: 'home'
           })
         })
         .catch(err => {
+          // 登录失败
           console.log('Login failed', err)
           this.$message.error('Login failed due to wrong email or password.')
-          this.loginLoading = false
+
+          // 关闭 loading
+          this.loginLoading = true
         })
     }
   }
@@ -137,12 +198,6 @@ export default {
 </script>
 
 <style scoped lang="less">
-h2 {
-  font-family: "Open Sans";
-  letter-spacing: 1px;
-  font-family: Roboto, sans-serif;
-  padding-bottom: 20px;
-}
 .login-container {
   position: fixed;
   left: 0;
@@ -156,8 +211,8 @@ h2 {
   background: url("./login_bg.jpg") no-repeat;
   background-size: cover;
   .login-form-wrap {
-    min-width: 300px;
-    padding: 30px 50px 10px;
+    min-width: 360px;
+    padding: 30px 50px 30px;
     background-color: #fff;
     .login-head {
       display: flex;
@@ -185,5 +240,21 @@ h2 {
   letter-spacing: 1px;
   font-family: Roboto, sans-serif;
   padding-bottom: 20px;
+}
+.code {
+  float: left;
+  //display: inline-block;
+  width: 100px;
+  margin: auto;
+}
+.codebutton {
+  float: right;
+  //display: inline-block;
+  width: 100px;
+  margin: auto;
+  //justify-content: center;
+}
+.item {
+  font-size: 1.5rem;
 }
 </style>
